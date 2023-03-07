@@ -23,3 +23,11 @@ pub struct User {
     pub id: String,
     pub username: String,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RefreshTokenPayload<T> {
+    pub client_id: String,
+    pub client_secret: String,
+    pub grant_type: String,
+    pub refresh_token: T,
+}

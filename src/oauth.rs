@@ -1,37 +1,42 @@
 use reqwest::Client;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
-use crate::{models::{User, AuthorizeTokenPayload, AuthorizedToken}, Error};
+use crate::{API_URL, models, Error};
 
 
 
 #[derive(Debug)]
-pub struct OauthClient<'a>{
+pub struct OauthClient<'a> {
     client: Client,
-    client_id: &'a String,
-    client_secret: &'a String,
-    redirect_uri: &'a String
+    access_token: Option<String>,
+    client_id: &'a str,
+    client_secret: &'a str,
+    redirect_uri: &'a str,
 }
 
-
 impl<'a> OauthClient<'a> {
-    pub fn new(client_id: &'a String, client_secret: &'a String, redirect_uri: &'a String) -> Self {
-        OauthClient {
+    pub fn new(client_id: &'a str, client_secret: &'a str, redirect_uri: &'a str) -> Self {
+        Self {
             client: Client::new(),
             client_id,
+            access_token: None,
             client_secret: client_secret,
-            redirect_uri: redirect_uri     
+            redirect_uri: redirect_uri,
         }
     }
 
-    pub async fn authorize_token(&self, code: String) -> Error<AuthorizedToken> {
-        println!("{}", self.client_id.to_owned());
-
+    /// Authorizes a code
+    /// # Arguments
+    /// * 'code' - A reference of a string that should be returned from an web server
+    /// # Note
+    /// this function sets the access_token paramater so unless you need to use other data returned, you should not need to put this in a variable
+    #[allow(unused_must_use)]
+    pub async fn authorize_code(&mut self, code: &String) -> Error<models::AuthorizedToken> {
         let json = self
             .client
-            .post("https://discord.com/api/v10/oauth2/token")
-            .form(&AuthorizeTokenPayload {
+            .post(format!("{}/oauth2/token", API_URL))
+            .form(&models::AuthorizeTokenPayload {
                 client_id: self.client_id.to_owned(),
                 client_secret: self.client_secret.to_owned(),
                 grant_type: "authorization_code".to_string(),
@@ -39,31 +44,55 @@ impl<'a> OauthClient<'a> {
                 redirect_uri: self.redirect_uri.to_owned(),
             })
             .send()
-            .await? 
-            .json::<AuthorizedToken>()
+            .await?
+            .json::<models::AuthorizedToken>()
+            .await?;
+
+        self.access_token = Some(json.access_token.to_string());
+
+        Ok(json)
+    }
+
+    
+    pub async fn refresh_token(&self, refresh_token: &String) -> Error<models::AuthorizedToken> {
+        let json = self
+            .client
+            .post(format!("{}/oauth2/token", API_URL))
+            .form(&models::RefreshTokenPayload {
+                client_id: self.client_id.to_owned(),
+                client_secret: self.client_secret.to_owned(),
+                grant_type: "refresh_token".to_owned(),
+                refresh_token: refresh_token,
+            })
+            .send()
+            .await?
+            .json::<models::AuthorizedToken>()
             .await?;
 
         Ok(json)
     }
 
-    pub async fn fetch_current_user(&self, code: String) -> Error<User> {
+    pub async fn fetch_current_user(&mut self) -> Error<models::User> {
         let json = self
             .client
             .get("https://discord.com/api/users/@me")
-            .header("Authorization", format!("Bearer {code}"))
+            .header("Authorization", format!("Bearer {}", self.access_token.as_ref().unwrap()))
             .send()
             .await?
-            .json::<User>()
+            .json::<models::User>()
             .await;
 
         Ok(json?)
     }
 
-    pub async fn fetch_user(&self, code: String, _user_id: u64) -> Error<HashMap<String, String>> {
+    pub async fn fetch_user(
+        &self,
+        user_id: u64,
+    ) -> Error<HashMap<String, String>> {
         let json = self
             .client
-            .get("https://discord.com/api/v10/users/439095710810505226")
-            .header("Authorization", format!("Bearer {code}"))
+            .get(format!("{}/users/{}", API_URL, user_id))
+            .header("Authorization", format!("Bearer {}", self.access_token.as_ref().unwrap()))
             .send()
             .await?
             .json::<HashMap<String, String>>()
