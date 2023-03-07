@@ -2,21 +2,26 @@ use reqwest::Client;
 
 use std::collections::HashMap;
 
-use crate::{API_URL, models, Error};
+use crate::{models};
+
+pub type Error<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+
+pub const API_URL: &str = "https://discord.com/api/v10";
 
 
 
 #[derive(Debug)]
-pub struct OauthClient<'a> {
+pub struct OauthClient{
     client: Client,
     access_token: Option<String>,
-    client_id: &'a str,
-    client_secret: &'a str,
-    redirect_uri: &'a str,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
 }
 
-impl<'a> OauthClient<'a> {
-    pub fn new(client_id: &'a str, client_secret: &'a str, redirect_uri: &'a str) -> Self {
+impl OauthClient{
+    pub fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
         Self {
             client: Client::new(),
             client_id,
@@ -80,9 +85,9 @@ impl<'a> OauthClient<'a> {
             .send()
             .await?
             .json::<models::User>()
-            .await;
+            .await?;
 
-        Ok(json?)
+        Ok(json)
     }
 
     pub async fn fetch_user(
