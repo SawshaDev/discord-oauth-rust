@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AuthorizeTokenPayload<T> {
-    pub client_id: String,
+    pub client_id: u64,
     pub client_secret: String,
     pub grant_type: String,
     pub code: T,
@@ -22,12 +22,17 @@ pub struct AuthorizedToken {
 pub struct User {
     pub id: String,
     pub username: String,
+    pub avatar: Option<String>,
+    pub banner: Option<String>,
+    pub discriminator: String,
+    pub display_name: Option<String>
+    
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RefreshTokenPayload<T> {
-    pub client_id: String,
+pub struct RefreshTokenPayload {
+    pub client_id: u64,
     pub client_secret: String,
     pub grant_type: String,
-    pub refresh_token: T,
+    pub refresh_token: String,
 }
